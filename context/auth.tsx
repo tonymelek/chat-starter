@@ -1,7 +1,14 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { getClientAuth } from "@/lib/firebase";
-import { useRouter, useSegments } from "expo-router";
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import * as SplashScreen from 'expo-splash-screen';
+import { useRouter, useSegments } from 'expo-router';
+
+import { AuthBootstrap } from '@/components/auth-bootstrap';
+import { getClientAuth } from '@/lib/firebase';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+const PUBLIC_ROUTES = new Set(['login']);
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +22,11 @@ const AuthContext = createContext<AuthContextType>({
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+function isPublicRoute(segments: string[]): boolean {
+  const root = segments[0];
+  return Boolean(root && PUBLIC_ROUTES.has(root));
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -32,31 +44,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!mounted) return;
 
     const auth = getClientAuth();
-    const unsub = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsub = onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser);
       setIsLoading(false);
     });
     return unsub;
   }, [mounted]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (!mounted || isLoading) return;
 
-    const inTabsGroup = (segments as any)[0] === "(tabs)" || (segments as any).length === 0 || (segments as any)[0] === "";
-    const isLoginScreen = segments[0] === "login";
+    SplashScreen.hideAsync().catch(() => {});
 
-    if (!user && (inTabsGroup || !segments[0])) {
-      // Redirect unauthenticated users to login
-      router.replace("/login");
-    } else if (user && isLoginScreen) {
-      // Redirect authenticated users to the main app if they try to access login
-      router.replace("/");
+    const publicRoute = isPublicRoute(segments as string[]);
+    if (!user && !publicRoute) {
+      router.replace('/login');
+    } else if (user && publicRoute) {
+      router.replace('/');
     }
-  }, [user, isLoading, segments]);
+  }, [user, isLoading, segments, mounted, router]);
+
+  const publicRoute = isPublicRoute(segments as string[]);
+  const holdNavigator =
+    !mounted || isLoading || (!user && !publicRoute) || Boolean(user && publicRoute);
 
   return (
     <AuthContext.Provider value={{ user, isLoading }}>
       {children}
+      {holdNavigator ? <AuthBootstrap /> : null}
     </AuthContext.Provider>
   );
 }
