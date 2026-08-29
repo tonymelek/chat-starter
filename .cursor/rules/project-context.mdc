@@ -1,0 +1,35 @@
+---
+description: Chat Starter stack, docs layout, and AI vs human task boundaries
+alwaysApply: true
+---
+
+# chat-starter — Project Context
+
+Expo (React Native) chat starter with Firebase Auth, Firestore, and Storage. Targets iOS, Android, and web. Intended as an open-source starting point, not a full messenger.
+
+## Key paths
+
+- App routes: `app/` (expo-router)
+- Firebase init: `lib/firebase.ts` (not `@/firebase` — collides with npm `firebase` package)
+- Auth context: `context/auth.tsx`
+- Data schema: `docs/SCHEMA.md` (canonical — do not drift from it)
+- Setup (Firebase Console, deploy): `docs/SETUP.md`
+- Roadmap: `docs/ROADMAP.md`
+
+## AI vs human
+
+| AI (repo) | Human (outside repo) |
+|-----------|----------------------|
+| App code, types, UX | Firebase Console: auth, indexes, publish rules |
+| `firebase/*.rules` and `firebase/firestore.indexes.json` | `yarn deploy:rules` or paste into Console |
+| `firebase.json`, `eas.json`, `.env.example` | Run `firebase deploy`, `eas build`, Apple accounts |
+| Sync Firestore user docs from app | Authorized domains, own Firebase project |
+
+Never commit `.env.local`, `.firebaserc`, or secrets. Use `EXPO_PUBLIC_*` for client Firebase config.
+
+## Conventions
+
+- Minimize scope; match existing StyleSheet patterns in each screen
+- Real-time data: Firestore `onSnapshot` (see home + chat screens)
+- Document ID for users = Auth `uid`
+- Chat rooms: 1:1 only; `participants` is `string[]` of UIDs

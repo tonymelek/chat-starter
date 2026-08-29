@@ -1,0 +1,37 @@
+---
+description: Expo Router and React Native UI conventions for this app
+globs: app/**/*.tsx,components/**/*.tsx,context/**
+alwaysApply: false
+---
+
+# Expo App Conventions
+
+## Routing (expo-router)
+
+- `(tabs)/index` — message list (Home)
+- `(tabs)/explore` — user directory (Contacts)
+- `(tabs)/settings` — settings + logout
+- `login` — auth modal; guarded by `context/auth.tsx`
+- `chat/[id]` — conversation screen
+- `profile/index` — profile edit
+
+## Auth guard
+
+`AuthProvider` redirects unauthenticated users to `/login`. Do not bypass without updating the provider.
+
+## UI patterns
+
+- Use `StyleSheet.create` per screen (existing pattern)
+- Safe areas: `react-native-safe-area-context`
+- Themed components available: `@/components/themed-view`, `themed-text`
+- Settings/Profile use `@expo/vector-icons` MaterialIcons
+
+## Platform notes
+
+- Web: `global.css` constrains `#root` to 800px
+- Chat uses custom bubbles with `KeyboardAvoidingView`
+- Profile avatar: `expo-image-picker` + Firebase Storage
+
+## Error UX
+
+Map Firebase errors to friendly messages (permission-denied, index missing, auth/email-already-in-use).

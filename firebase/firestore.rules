@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isRoomParticipant() {
+      return signedIn() && request.auth.uid in resource.data.participants;
+    }
+
+    function isServerTimestamp(value) {
+      return value is timestamp && value == request.time;
+    }
+
+    // Exactly two distinct non-empty UIDs. Order is preserved; the client
+    // must not rely on sorting.
+    function twoDistinctUids(uids) {
+      return uids is list
+        && uids.size() == 2
+        && uids[0] is string
+        && uids[1] is string
+        && uids[0].size() > 0
+        && uids[1].size() > 0
+        && uids[0] != uids[1];
+    }
+
+    function bothUsersExist(uids) {
+      return exists(/databases/$(database)/documents/users/$(uids[0]))
+        && exists(/databases/$(database)/documents/users/$(uids[1]));
+    }
+
+    function validRoomKeys(data) {
+      return data.keys().hasOnly(['participants', 'name', 'lastMessage', 'updatedAt']);
+    }
+
+    function optionalRoomName(data) {
+      return !('name' in data)
+        || (data.name is string && data.name.size() > 0 && data.name.size() <= 256);
+    }
+
+    function optionalLastMessage(data) {
+      return !('lastMessage' in data)
+        || (data.lastMessage is string && data.lastMessage.size() <= 1000);
+    }
+
+    function validRoomCreate() {
+      let data = request.resource.data;
+      return signedIn()
+        && twoDistinctUids(data.participants)
+        && request.auth.uid in data.participants
+        && bothUsersExist(data.participants)
+        && data.keys().hasAll(['participants', 'updatedAt'])
+        && validRoomKeys(data)
+        && isServerTimestamp(data.updatedAt)
+        && optionalRoomName(data)
+        && optionalLastMessage(data);
+    }
+
+    function validRoomUpdate() {
+      let data = request.resource.data;
+      let changed = data.diff(resource.data).affectedKeys();
+      return isRoomParticipant()
+        && data.participants == resource.data.participants
+        && changed.hasOnly(['name', 'lastMessage', 'updatedAt'])
+        && optionalRoomName(data)
+        && optionalLastMessage(data)
+        && (!changed.hasAny(['updatedAt']) || isServerTimestamp(data.updatedAt));
+    }
+
+    function parentRoomParticipants() {
+      return get(/databases/$(database)/documents/chatRooms/$(roomId)).data.participants;
+    }
+
+    function validMessageCreate() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['text', 'senderId', 'createdAt'])
+        && data.senderId == request.auth.uid
+        && data.text is string
+        && data.text.size() > 0
+        && data.text.size() <= 1000
+        && isServerTimestamp(data.createdAt);
+    }
+
+    // User directory — any signed-in user can read; only the owner can write
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create, update: if isUser(userId);
+    }
+
+    // Chat rooms — 1:1 only; participants are immutable after create
+    match /chatRooms/{roomId} {
+      allow read: if isRoomParticipant();
+      allow create: if validRoomCreate();
+      allow update: if validRoomUpdate();
+
+      match /messages/{messageId} {
+        allow read: if signedIn() && request.auth.uid in parentRoomParticipants();
+        allow create: if signedIn()
+          && request.auth.uid in parentRoomParticipants()
+          && validMessageCreate();
+      }
+    }
+  }
+}
