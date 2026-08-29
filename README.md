@@ -117,10 +117,6 @@ Import Firebase from `@/lib/firebase`, not `@/firebase` — that path collides w
 
 Conversations are **1:1 only**. A room’s `participants` array holds exactly two Auth UIDs. User documents use the Auth `uid` as the document ID.
 
-## Cursor / AI
-
-The repo ships [`.cursor/rules`](.cursor/rules) so an assistant stays on the schema, Expo routes, and “don’t hardcode Firebase keys” conventions. Forks that use Cursor get that for free.
-
 ## What’s not included
 
 Intentionally out of scope for a starter:

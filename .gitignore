@@ -35,6 +35,9 @@ yarn-error.*
 .env*.local
 .firebaserc
 
+# Cursor rules and plans stay on disk; they are not part of the public tree
+.cursor/
+
 # typescript
 *.tsbuildinfo
 
