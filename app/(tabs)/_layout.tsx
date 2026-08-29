@@ -3,16 +3,20 @@ import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useBrandTheme } from '@/hooks/use-brand-theme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const theme = useBrandTheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: theme.accent,
+        tabBarInactiveTintColor: theme.icon,
+        tabBarStyle: {
+          backgroundColor: theme.tabBar,
+          borderTopColor: theme.border,
+        },
         headerShown: false,
         tabBarShowLabel: true,
         tabBarButton: HapticTab,
@@ -22,6 +26,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarAccessibilityLabel: 'Home',
         }}
       />
       <Tabs.Screen
@@ -29,6 +34,7 @@ export default function TabLayout() {
         options={{
           title: 'Contacts',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.crop.circle" color={color} />,
+          tabBarAccessibilityLabel: 'Contacts',
         }}
       />
       <Tabs.Screen
@@ -36,6 +42,7 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="gear" color={color} />,
+          tabBarAccessibilityLabel: 'Settings',
         }}
       />
     </Tabs>

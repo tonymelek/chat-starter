@@ -1,47 +1,51 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   Image,
-  View,
   Linking,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-} from "firebase/auth";
+} from 'firebase/auth';
 
-import { Brand } from "@/constants/brand";
-import { getClientAuth } from "@/lib/firebase";
-import { getFirebaseErrorMessage } from "@/lib/firebase-errors";
-import { syncUserDoc } from "@/lib/users";
+import { AccessibleField } from '@/components/ui/accessible-field';
+import { LiveStatus } from '@/components/ui/live-status';
+import { Brand } from '@/constants/brand';
+import { hitSlop, minTouchSize } from '@/constants/a11y';
+import { useBrandTheme } from '@/hooks/use-brand-theme';
+import { getClientAuth } from '@/lib/firebase';
+import { getFirebaseErrorMessage } from '@/lib/firebase-errors';
+import { syncUserDoc } from '@/lib/users';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const theme = useBrandTheme();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
 
   const validate = (): string | null => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
-      return "Please fill out all fields.";
+      return 'Please fill out all fields.';
     }
     if (!EMAIL_REGEX.test(trimmedEmail)) {
-      return "Please enter a valid email address.";
+      return 'Please enter a valid email address.';
     }
     if (!isLogin && password.length < 6) {
-      return "Password must be at least 6 characters.";
+      return 'Password must be at least 6 characters.';
     }
     return null;
   };
@@ -54,7 +58,7 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    setError("");
+    setError('');
     setResetSent(false);
     const trimmedEmail = email.trim();
 
@@ -74,22 +78,22 @@ export default function LoginScreen() {
   const handlePasswordReset = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setError("Enter your email above, then tap Forgot password.");
+      setError('Enter your email above, then tap Forgot password.');
       return;
     }
     if (!EMAIL_REGEX.test(trimmedEmail)) {
-      setError("Please enter a valid email address.");
+      setError('Please enter a valid email address.');
       return;
     }
 
     setLoading(true);
-    setError("");
+    setError('');
     setResetSent(false);
 
     try {
       await sendPasswordResetEmail(getClientAuth(), trimmedEmail);
       setResetSent(true);
-      Alert.alert("Check your email", "We sent a password reset link to your inbox.");
+      Alert.alert('Check your email', 'We sent a password reset link to your inbox.');
     } catch (err) {
       setError(getFirebaseErrorMessage(err));
     } finally {
@@ -97,56 +101,95 @@ export default function LoginScreen() {
     }
   };
 
+  const submitLabel = isLogin ? 'Sign In' : 'Sign Up';
+
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={['top', 'bottom', 'left', 'right']}
+    >
       <View style={styles.body}>
         <View style={styles.brand}>
           <Image
-            source={require("@/assets/images/meltek-mark.png")}
+            source={require('@/assets/images/meltek-mark.png')}
             style={styles.mark}
             accessibilityLabel="Meltek"
           />
-          <Text style={styles.productName}>Chat</Text>
-          <Text style={styles.credit}>{Brand.credit}</Text>
+          <Text style={[styles.productName, { color: theme.text }]}>Chat</Text>
+          <Text style={[styles.credit, { color: theme.accent }]}>{Brand.credit}</Text>
         </View>
 
-        <Text style={styles.title}>{isLogin ? "Welcome Back" : "Create Account"}</Text>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        {resetSent ? (
-          <Text style={styles.successText}>Password reset email sent.</Text>
-        ) : null}
+        <Text
+          style={[styles.title, { color: theme.text }]}
+          accessibilityRole="header"
+        >
+          {isLogin ? 'Welcome Back' : 'Create Account'}
+        </Text>
+        <LiveStatus message={error} />
+        <LiveStatus
+          tone="success"
+          message={resetSent ? 'Password reset email sent.' : ''}
+        />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#888"
+        <AccessibleField
+          label="Email"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
+          textContentType="username"
+          autoCorrect={false}
+          spellCheck={false}
+          returnKeyType="next"
+          editable={!loading}
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#888"
+        <AccessibleField
+          label="Password"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          autoComplete={isLogin ? "current-password" : "new-password"}
+          autoComplete={isLogin ? 'current-password' : 'new-password'}
+          textContentType={isLogin ? 'password' : 'newPassword'}
+          returnKeyType="go"
+          onSubmitEditing={handleAuth}
+          editable={!loading}
         />
 
         {isLogin ? (
-          <TouchableOpacity style={styles.forgotButton} onPress={handlePasswordReset} disabled={loading}>
-            <Text style={styles.forgotButtonText}>Forgot password?</Text>
+          <TouchableOpacity
+            style={styles.forgotButton}
+            onPress={handlePasswordReset}
+            disabled={loading}
+            hitSlop={hitSlop}
+            accessibilityRole="button"
+            accessibilityLabel="Forgot password"
+            accessibilityState={{ disabled: loading, busy: loading }}
+          >
+            <Text style={[styles.forgotButtonText, { color: theme.accent }]}>
+              Forgot password?
+            </Text>
           </TouchableOpacity>
         ) : null}
 
-        <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            { backgroundColor: theme.action, minHeight: minTouchSize },
+            loading && styles.buttonDisabled,
+          ]}
+          onPress={handleAuth}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel={submitLabel}
+          accessibilityState={{ disabled: loading, busy: loading }}
+        >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.actionForeground} />
           ) : (
-            <Text style={styles.buttonText}>{isLogin ? "Sign In" : "Sign Up"}</Text>
+            <Text style={[styles.buttonText, { color: theme.actionForeground }]}>
+              {submitLabel}
+            </Text>
           )}
         </TouchableOpacity>
 
@@ -154,12 +197,16 @@ export default function LoginScreen() {
           style={styles.switchButton}
           onPress={() => {
             setIsLogin(!isLogin);
-            setError("");
+            setError('');
             setResetSent(false);
           }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'
+          }
         >
-          <Text style={styles.switchButtonText}>
-            {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+          <Text style={[styles.switchButtonText, { color: theme.accent }]}>
+            {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -168,8 +215,11 @@ export default function LoginScreen() {
         style={styles.studioLink}
         onPress={() => Linking.openURL(Brand.url)}
         accessibilityRole="link"
+        accessibilityLabel={`${Brand.name}, ${Brand.tagline}`}
       >
-        <Text style={styles.studioLinkText}>{Brand.name} · {Brand.tagline}</Text>
+        <Text style={[styles.studioLinkText, { color: theme.textMuted }]}>
+          {Brand.name} · {Brand.tagline}
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -178,15 +228,14 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.mist,
   },
   body: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: 'center',
     padding: 24,
   },
   brand: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 28,
   },
   mark: {
@@ -197,77 +246,60 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 22,
-    fontWeight: "700",
-    color: Brand.ink,
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
   credit: {
     marginTop: 4,
     fontSize: 13,
-    color: Brand.sea,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   title: {
     fontSize: 26,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 24,
-    textAlign: "center",
-    color: Brand.ink,
-  },
-  input: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    fontSize: 16,
-    color: Brand.ink,
+    textAlign: 'center',
   },
   forgotButton: {
-    alignSelf: "flex-end",
+    alignSelf: 'flex-end',
     marginBottom: 16,
     marginTop: -4,
+    minHeight: minTouchSize,
+    justifyContent: 'center',
   },
   forgotButtonText: {
-    color: Brand.sea,
     fontSize: 14,
   },
   button: {
-    backgroundColor: Brand.coral,
-    padding: 15,
+    paddingHorizontal: 15,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 20,
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
   buttonText: {
-    color: "#fff",
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   switchButton: {
-    alignItems: "center",
+    alignItems: 'center',
+    minHeight: minTouchSize,
+    justifyContent: 'center',
   },
   switchButtonText: {
-    color: Brand.sea,
     fontSize: 16,
   },
-  errorText: {
-    color: "#dc2626",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-  successText: {
-    color: "#16a34a",
-    marginBottom: 15,
-    textAlign: "center",
-  },
   studioLink: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
+    minHeight: minTouchSize,
   },
   studioLinkText: {
     fontSize: 12,
-    color: "#64748b",
-    textAlign: "center",
+    textAlign: 'center',
   },
 });

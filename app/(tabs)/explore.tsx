@@ -4,10 +4,11 @@ import { collection, getDocs, addDoc, query, where, serverTimestamp } from 'fire
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Brand } from '@/constants/brand';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { db } from "@/lib/firebase";
+import { minTouchSize } from '@/constants/a11y';
+import { useBrandTheme } from '@/hooks/use-brand-theme';
+import { db } from '@/lib/firebase';
 import { useAuth } from '../../context/auth';
 import { getFirebaseErrorMessage } from '@/lib/firebase-errors';
 import { getUserDisplayLabel, getUserInitial, UserDoc } from '@/lib/users';
@@ -19,6 +20,7 @@ interface UserData extends UserDoc {
 export default function ExploreScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const theme = useBrandTheme();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -91,18 +93,31 @@ export default function ExploreScreen() {
     const showEmail = item.displayName?.trim() && item.email;
 
     return (
-      <TouchableOpacity onPress={() => startChat(item)} style={styles.userCard}>
+      <TouchableOpacity
+        onPress={() => startChat(item)}
+        style={[styles.userCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        accessibilityRole="button"
+        accessibilityLabel={`Start chat with ${label}`}
+      >
         {item.photoURL ? (
-          <Image source={{ uri: item.photoURL }} style={styles.avatarImage} />
+          <Image
+            source={{ uri: item.photoURL }}
+            style={styles.avatarImage}
+            accessibilityIgnoresInvertColors
+          />
         ) : (
-          <View style={styles.avatar}>
-            <ThemedText style={styles.avatarText}>{getUserInitial(item)}</ThemedText>
+          <View style={[styles.avatar, { backgroundColor: theme.accent }]}>
+            <ThemedText style={[styles.avatarText, { color: theme.textOnAccent }]}>
+              {getUserInitial(item)}
+            </ThemedText>
           </View>
         )}
         <View style={styles.userInfo}>
           <ThemedText style={styles.nameText}>{label}</ThemedText>
           {showEmail ? (
-            <ThemedText style={styles.emailText}>{item.email}</ThemedText>
+            <ThemedText style={[styles.emailText, { color: theme.textMuted }]}>
+              {item.email}
+            </ThemedText>
           ) : null}
         </View>
       </TouchableOpacity>
@@ -111,22 +126,34 @@ export default function ExploreScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.header} edges={['top']}>
-        <ThemedText type="title">Contacts</ThemedText>
+      <SafeAreaView style={[styles.header, { borderBottomColor: theme.border }]} edges={['top']}>
+        <ThemedText type="title" accessibilityRole="header">
+          Contacts
+        </ThemedText>
       </SafeAreaView>
 
       {loading ? (
-        <ThemedText style={styles.statusText}>Loading users...</ThemedText>
+        <ThemedText style={[styles.statusText, { color: theme.textMuted }]}>
+          Loading contacts
+        </ThemedText>
       ) : error ? (
-        <ThemedText style={styles.errorText}>{error}</ThemedText>
+        <ThemedText
+          style={[styles.errorText, { color: theme.destructive }]}
+          accessibilityRole="alert"
+        >
+          {error}
+        </ThemedText>
       ) : users.length === 0 ? (
-        <ThemedText style={styles.statusText}>No other users found.</ThemedText>
+        <ThemedText style={[styles.statusText, { color: theme.textMuted }]}>
+          No other users found. Create a second account to start a chat.
+        </ThemedText>
       ) : (
         <FlatList
           data={users}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          accessibilityRole="list"
         />
       )}
     </ThemedView>
@@ -140,7 +167,6 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
   },
   listContent: {
     padding: 10,
@@ -149,20 +175,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 15,
     marginBottom: 10,
-    backgroundColor: '#f9f9f9',
     borderRadius: 8,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    minHeight: minTouchSize,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Brand.ink,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -174,7 +195,6 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   avatarText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -184,24 +204,21 @@ const styles = StyleSheet.create({
   nameText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
   },
   emailText: {
     fontSize: 13,
-    color: '#666',
     marginTop: 2,
   },
   statusText: {
     textAlign: 'center',
     marginTop: 50,
     fontSize: 16,
-    color: '#888',
+    paddingHorizontal: 24,
   },
   errorText: {
     textAlign: 'center',
     marginTop: 50,
     fontSize: 14,
-    color: '#dc2626',
     paddingHorizontal: 24,
   },
 });

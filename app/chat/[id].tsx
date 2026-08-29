@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,9 +11,9 @@ import {
   Keyboard,
   Modal,
   Pressable,
-} from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+} from 'react-native';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   addDoc,
   collection,
@@ -23,10 +23,16 @@ import {
   query,
   updateDoc,
   serverTimestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "../../context/auth";
-import { getFirebaseErrorMessage } from "@/lib/firebase-errors";
+} from 'firebase/firestore';
+
+import { IconButton } from '@/components/ui/icon-button';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { LiveStatus } from '@/components/ui/live-status';
+import { minTouchSize } from '@/constants/a11y';
+import { useBrandTheme } from '@/hooks/use-brand-theme';
+import { db } from '@/lib/firebase';
+import { useAuth } from '../../context/auth';
+import { getFirebaseErrorMessage } from '@/lib/firebase-errors';
 
 type ChatMessage = {
   _id: string;
@@ -35,20 +41,43 @@ type ChatMessage = {
   user: { _id: string; name?: string };
 };
 
-// ─── Bubble ─────────────────────────────────────────────────────────────────
 function MessageBubble({ message, isMe }: { message: ChatMessage; isMe: boolean }) {
-const time = new Date(message.createdAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
+  const theme = useBrandTheme();
+  const time = new Date(message.createdAt).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
   });
+  const who = isMe ? 'You' : message.user.name || 'Other';
 
   return (
-    <View style={[styles.bubbleRow, isMe ? styles.bubbleRowMe : styles.bubbleRowThem]}>
-      <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-        <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
+    <View
+      style={[styles.bubbleRow, isMe ? styles.bubbleRowMe : styles.bubbleRowThem]}
+      accessible
+      accessibilityLabel={`${who}, ${message.text}, ${time}`}
+    >
+      <View
+        style={[
+          styles.bubble,
+          isMe
+            ? { backgroundColor: theme.bubbleMe, borderColor: theme.accent }
+            : { backgroundColor: theme.bubbleThem, borderColor: theme.border },
+          isMe ? styles.bubbleMe : styles.bubbleThem,
+        ]}
+      >
+        <Text
+          style={[
+            styles.bubbleText,
+            { color: isMe ? theme.bubbleMeText : theme.bubbleThemText },
+          ]}
+        >
           {message.text}
         </Text>
-        <Text style={[styles.timeText, isMe ? styles.timeMe : styles.timeThem]}>
+        <Text
+          style={[
+            styles.timeText,
+            { color: isMe ? theme.bubbleMeText : theme.textMuted, textAlign: isMe ? 'right' : 'left' },
+          ]}
+        >
           {time}
         </Text>
       </View>
@@ -56,39 +85,38 @@ const time = new Date(message.createdAt).toLocaleTimeString([], {
   );
 }
 
-// ─── Screen ──────────────────────────────────────────────────────────────────
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const theme = useBrandTheme();
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputText, setInputText] = useState("");
-  const [roomName, setRoomName] = useState("Chat");
+  const [inputText, setInputText] = useState('');
+  const [roomName, setRoomName] = useState('Chat');
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
-  const [newRoomName, setNewRoomName] = useState("");
-  const [error, setError] = useState("");
+  const [newRoomName, setNewRoomName] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!id) return;
-    
-    // Fetch room metadata (specifically the name)
-    const roomRef = doc(db, "chatRooms", id);
+
+    const roomRef = doc(db, 'chatRooms', id);
     const unsubRoom = onSnapshot(
       roomRef,
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setRoomName(data.name || "Chat");
-          setNewRoomName(data.name || "Chat");
+          setRoomName(data.name || 'Chat');
+          setNewRoomName(data.name || 'Chat');
         }
-        setError("");
+        setError('');
       },
       (err) => setError(getFirebaseErrorMessage(err))
     );
 
     const q = query(
-      collection(db, "chatRooms", id, "messages"),
-      orderBy("createdAt", "desc")
+      collection(db, 'chatRooms', id, 'messages'),
+      orderBy('createdAt', 'desc')
     );
     const unsubscribeMessages = onSnapshot(
       q,
@@ -102,12 +130,12 @@ export default function ChatScreen() {
               createdAt: data.createdAt?.toDate() || new Date(),
               user: {
                 _id: data.senderId,
-                name: data.senderId === user?.uid ? "Me" : "Other",
+                name: data.senderId === user?.uid ? 'Me' : 'Other',
               },
             };
           })
         );
-        setError("");
+        setError('');
       },
       (err) => setError(getFirebaseErrorMessage(err))
     );
@@ -121,20 +149,20 @@ export default function ChatScreen() {
   const sendMessage = useCallback(async () => {
     const text = inputText.trim();
     if (!text || !id || !user) return;
-    setInputText("");
+    setInputText('');
     Keyboard.dismiss();
     try {
-      await addDoc(collection(db, "chatRooms", id, "messages"), {
+      await addDoc(collection(db, 'chatRooms', id, 'messages'), {
         text,
         senderId: user.uid,
         createdAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, "chatRooms", id), {
+      await updateDoc(doc(db, 'chatRooms', id), {
         lastMessage: text,
         updatedAt: serverTimestamp(),
       });
     } catch (e) {
-      console.error("Error sending:", e);
+      console.error('Error sending:', e);
       setError(getFirebaseErrorMessage(e));
       setInputText(text);
     }
@@ -143,35 +171,39 @@ export default function ChatScreen() {
   const handleRename = async () => {
     if (!id || !newRoomName.trim()) return;
     try {
-      await updateDoc(doc(db, "chatRooms", id), {
+      await updateDoc(doc(db, 'chatRooms', id), {
         name: newRoomName.trim(),
       });
       setIsRenameModalVisible(false);
       Keyboard.dismiss();
     } catch (e) {
-      console.error("Error renaming:", e);
+      console.error('Error renaming:', e);
       setError(getFirebaseErrorMessage(e));
     }
   };
 
+  const canSend = Boolean(inputText.trim());
+
   return (
-    <View style={styles.root}>
-      {/* Opaque header — backed by headerStatusBarHeight for Android consistency */}
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
       <Stack.Screen
         options={{
           headerShown: true,
           title: roomName,
-          headerStyle: { backgroundColor: "#ffffff" },
-          headerTintColor: "#6C63FF",
-          headerTitleStyle: { fontWeight: "700", color: "#1a1a2e" },
+          headerStyle: { backgroundColor: theme.surface },
+          headerTintColor: theme.accent,
+          headerTitleStyle: { fontWeight: '700', color: theme.text },
           headerShadowVisible: true,
           headerTransparent: false,
+          headerBackTitle: 'Back',
           headerRight: () => (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setIsRenameModalVisible(true)}
-              style={styles.headerBtn}
+              style={[styles.headerBtn, { backgroundColor: theme.accentMuted }]}
+              accessibilityRole="button"
+              accessibilityLabel="Rename conversation"
             >
-              <Text style={styles.headerBtnText}>Rename</Text>
+              <Text style={[styles.headerBtnText, { color: theme.accent }]}>Rename</Text>
             </TouchableOpacity>
           ),
         }}
@@ -179,88 +211,141 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {error ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{error}</Text>
+          <View style={[styles.errorBanner, { backgroundColor: theme.destructiveMuted }]}>
+            <LiveStatus message={error} />
           </View>
         ) : null}
 
-        {/* Messages */}
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => String(item._id)}
-          renderItem={({ item }) => (
-            <MessageBubble message={item} isMe={item.user._id === user?.uid} />
-          )}
-          inverted
-          contentContainerStyle={styles.listContent}
-          keyboardDismissMode="interactive"
-          showsVerticalScrollIndicator={false}
-        />
+        {messages.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+              No messages yet. Say hello.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={messages}
+            keyExtractor={(item) => String(item._id)}
+            renderItem={({ item }) => (
+              <MessageBubble message={item} isMe={item.user._id === user?.uid} />
+            )}
+            inverted
+            contentContainerStyle={styles.listContent}
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+          />
+        )}
 
-        {/* Liquid glass input bar */}
-        <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-          <View style={styles.inputGlass}>
+        <View
+          style={[
+            styles.inputBar,
+            {
+              paddingBottom: Math.max(insets.bottom, 14),
+              backgroundColor: theme.background,
+              borderTopColor: theme.border,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.inputGlass,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { color: theme.text }]}
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Message…"
-              placeholderTextColor="rgba(80,80,120,0.45)"
+              placeholder="Message"
+              placeholderTextColor={theme.textMuted}
+              accessibilityLabel="Message"
+              accessibilityHint="Up to 1000 characters"
               multiline
               maxLength={1000}
               returnKeyType="send"
               onSubmitEditing={sendMessage}
               blurOnSubmit={false}
             />
-            <TouchableOpacity
+            <IconButton
               onPress={sendMessage}
-              style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-              disabled={!inputText.trim()}
-              activeOpacity={0.75}
+              disabled={!canSend}
+              accessibilityLabel="Send message"
+              style={[
+                styles.sendBtn,
+                { backgroundColor: canSend ? theme.action : theme.surfaceMuted },
+              ]}
             >
-              <Text style={styles.sendIcon}>↑</Text>
-            </TouchableOpacity>
+              <IconSymbol
+                name="paperplane.fill"
+                size={18}
+                color={canSend ? theme.actionForeground : theme.textMuted}
+              />
+            </IconButton>
           </View>
         </View>
       </KeyboardAvoidingView>
 
-      {/* Rename Modal */}
       <Modal
         visible={isRenameModalVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setIsRenameModalVisible(false)}
+        accessibilityViewIsModal
       >
-        <Pressable 
-          style={styles.modalOverlay} 
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}
           onPress={() => setIsRenameModalVisible(false)}
+          accessibilityLabel="Dismiss rename dialog"
+          accessibilityRole="button"
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Rename Chat Room</Text>
+          <View
+            style={[styles.modalContent, { backgroundColor: theme.surface }]}
+            onStartShouldSetResponder={() => true}
+            accessibilityRole="none"
+          >
+            <Text
+              style={[styles.modalTitle, { color: theme.text }]}
+              accessibilityRole="header"
+            >
+              Rename Chat Room
+            </Text>
             <TextInput
-              style={styles.modalInput}
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: theme.surfaceMuted,
+                  color: theme.text,
+                  borderColor: theme.border,
+                },
+              ]}
               value={newRoomName}
               onChangeText={setNewRoomName}
-              placeholder="Enter new name..."
+              placeholder="Enter new name"
+              placeholderTextColor={theme.textMuted}
+              accessibilityLabel="Conversation name"
               autoFocus
               selectTextOnFocus
             />
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setIsRenameModalVisible(false)}
-                style={[styles.modalBtn, styles.modalBtnCancel]}
+                style={[styles.modalBtn, { backgroundColor: theme.surfaceMuted }]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
               >
-                <Text style={styles.modalBtnTextCancel}>Cancel</Text>
+                <Text style={[styles.modalBtnText, { color: theme.textMuted }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={handleRename}
-                style={[styles.modalBtn, styles.modalBtnSave]}
+                style={[styles.modalBtn, { backgroundColor: theme.action }]}
+                accessibilityRole="button"
+                accessibilityLabel="Save conversation name"
               >
-                <Text style={styles.modalBtnTextSave}>Save</Text>
+                <Text style={[styles.modalBtnText, { color: theme.actionForeground }]}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -270,197 +355,124 @@ export default function ChatScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-const ACCENT = "#6C63FF";
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F5F5FA" },
+  root: { flex: 1 },
   flex: { flex: 1 },
 
   errorBanner: {
-    backgroundColor: "#fef2f2",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#fecaca",
-  },
-  errorBannerText: {
-    color: "#dc2626",
-    fontSize: 13,
-    textAlign: "center",
+    paddingTop: 10,
   },
 
   listContent: {
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+  },
 
-  // Bubbles
-  bubbleRow: { marginVertical: 3, flexDirection: "row" },
-  bubbleRowMe: { justifyContent: "flex-end" },
-  bubbleRowThem: { justifyContent: "flex-start" },
+  bubbleRow: { marginVertical: 3, flexDirection: 'row' },
+  bubbleRowMe: { justifyContent: 'flex-end' },
+  bubbleRowThem: { justifyContent: 'flex-start' },
 
   bubble: {
-    maxWidth: "75%",
+    maxWidth: '75%',
     borderRadius: 22,
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderWidth: 1,
   },
   bubbleMe: {
-    backgroundColor: ACCENT,
-    borderColor: "#5A52D5",
     borderBottomRightRadius: 6,
   },
   bubbleThem: {
-    backgroundColor: "#ffffff",
-    borderColor: "rgba(108,99,255,0.2)",
     borderBottomLeftRadius: 6,
-    // subtle shadow for depth
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  bubbleText: { fontSize: 15.5, lineHeight: 21 },
-  bubbleTextMe: { color: "#ffffff" },
-  bubbleTextThem: { color: "#1a1a2e" },
+  bubbleText: { fontSize: 16, lineHeight: 22 },
+  timeText: { fontSize: 11, marginTop: 4, opacity: 0.85 },
 
-  timeText: { fontSize: 10, marginTop: 4, opacity: 0.7 },
-  timeMe: { color: "rgba(255,255,255,0.85)", textAlign: "right" },
-  timeThem: { color: "#555" },
-
-  // Input bar — fully opaque so messages never bleed through
   inputBar: {
     paddingHorizontal: 12,
     paddingTop: 10,
-    backgroundColor: "#F5F5FA",
     borderTopWidth: 1,
-    borderTopColor: "rgba(108,99,255,0.15)",
   },
   inputGlass: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    backgroundColor: "#ffffff",
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     borderRadius: 28,
-    borderWidth: 1.5,
-    borderColor: "rgba(108,99,255,0.35)",
+    borderWidth: 1,
     paddingLeft: 18,
     paddingRight: 6,
     paddingVertical: 6,
-    shadowColor: ACCENT,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
   },
   textInput: {
     flex: 1,
-    color: "#1a1a2e",
-    fontSize: 15.5,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
     maxHeight: 110,
-    paddingTop: 6,
-    paddingBottom: 6,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: ACCENT,
-    justifyContent: "center",
-    alignItems: "center",
+    borderRadius: 22,
     marginLeft: 8,
-    shadowColor: ACCENT,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  sendBtnDisabled: {
-    backgroundColor: "rgba(108,99,255,0.25)",
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  sendIcon: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 24,
   },
   headerBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: minTouchSize,
     borderRadius: 16,
-    backgroundColor: "rgba(108,99,255,0.1)",
+    justifyContent: 'center',
   },
   headerBtnText: {
-    color: ACCENT,
-    fontWeight: "600",
+    fontWeight: '600',
     fontSize: 14,
   },
-  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 24,
   },
   modalContent: {
-    backgroundColor: "#fff",
     borderRadius: 24,
     padding: 24,
-    width: "100%",
+    width: '100%',
     maxWidth: 400,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#1a1a2e",
+    fontWeight: '700',
     marginBottom: 20,
-    textAlign: "center",
+    textAlign: 'center',
   },
   modalInput: {
-    backgroundColor: "#F5F5FA",
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: "#1a1a2e",
-    borderWidth: 1.5,
-    borderColor: "rgba(108,99,255,0.15)",
+    borderWidth: 1,
     marginBottom: 24,
+    minHeight: minTouchSize,
   },
   modalButtons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   modalBtn: {
     flex: 1,
-    paddingVertical: 14,
+    minHeight: minTouchSize,
     borderRadius: 12,
-    alignItems: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  modalBtnCancel: {
-    backgroundColor: "#F5F5FA",
-  },
-  modalBtnSave: {
-    backgroundColor: ACCENT,
-  },
-  modalBtnTextCancel: {
-    color: "#555",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  modalBtnTextSave: {
-    color: "#fff",
-    fontWeight: "600",
+  modalBtnText: {
+    fontWeight: '600',
     fontSize: 16,
   },
 });

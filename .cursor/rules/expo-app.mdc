@@ -17,11 +17,14 @@ alwaysApply: false
 
 ## Auth guard
 
-`AuthProvider` redirects unauthenticated users to `/login`. Do not bypass without updating the provider.
+`AuthProvider` uses a public-route allowlist (`login` only) and holds the navigator behind `AuthBootstrap` until Firebase Auth has resolved. Unauthenticated users cannot stay on `/chat/*`, `/profile`, or tabs. Do not add a private route without updating the provider.
 
 ## UI patterns
 
 - Use `StyleSheet.create` per screen (existing pattern)
+- Colors: `useBrandTheme()` semantic tokens, not one-off hex (see `constants/brand.ts`)
+- Accessible controls: `@/components/ui/accessible-field`, `icon-button`, `live-status`
+- Touch targets: `minTouchSize` from `constants/a11y` (44 iOS / 48 Android)
 - Safe areas: `react-native-safe-area-context`
 - Themed components available: `@/components/themed-view`, `themed-text`
 - Settings/Profile use `@expo/vector-icons` MaterialIcons

@@ -1,22 +1,23 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, FlatList, TouchableOpacity, View, Text, Image } from "react-native";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, FlatList, TouchableOpacity, View, Text, Image } from 'react-native';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { db } from "@/lib/firebase";
-import { useAuth } from "../../context/auth";
-import { Brand } from "@/constants/brand";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { getFirebaseErrorMessage } from "@/lib/firebase-errors";
+import { db } from '@/lib/firebase';
+import { useAuth } from '../../context/auth';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { minTouchSize } from '@/constants/a11y';
+import { useBrandTheme } from '@/hooks/use-brand-theme';
+import { getFirebaseErrorMessage } from '@/lib/firebase-errors';
 import {
   fetchUserProfiles,
   getOtherParticipantId,
   getUserDisplayLabel,
   getUserInitial,
   UserDoc,
-} from "@/lib/users";
+} from '@/lib/users';
 
 interface ChatRoom {
   id: string;
@@ -29,19 +30,20 @@ interface ChatRoom {
 export default function HomeScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const theme = useBrandTheme();
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserDoc>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!user) return;
 
-    const roomsRef = collection(db, "chatRooms");
+    const roomsRef = collection(db, 'chatRooms');
     const q = query(
       roomsRef,
-      where("participants", "array-contains", user.uid),
-      orderBy("updatedAt", "desc")
+      where('participants', 'array-contains', user.uid),
+      orderBy('updatedAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(
@@ -53,10 +55,10 @@ export default function HomeScreen() {
         });
         setRooms(roomList);
         setLoading(false);
-        setError("");
+        setError('');
       },
       (err) => {
-        console.error("Error loading rooms:", err);
+        console.error('Error loading rooms:', err);
         setError(getFirebaseErrorMessage(err));
         setLoading(false);
       }
@@ -77,40 +79,47 @@ export default function HomeScreen() {
 
     fetchUserProfiles(otherUids)
       .then(setProfiles)
-      .catch((err) => console.error("Error loading participant profiles:", err));
+      .catch((err) => console.error('Error loading participant profiles:', err));
   }, [rooms, user]);
 
   const renderRoom = ({ item }: { item: ChatRoom }) => {
     const dateStr = item.updatedAt?.toDate
-      ? item.updatedAt.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : "";
+      ? item.updatedAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '';
 
     const otherUid = user ? getOtherParticipantId(item.participants, user.uid) : undefined;
     const other = otherUid ? profiles[otherUid] : undefined;
-    const title = other ? getUserDisplayLabel(other) : item.name || "Chat";
+    const title = other ? getUserDisplayLabel(other) : item.name || 'Chat';
+    const preview = item.lastMessage || 'No messages yet';
 
     return (
       <TouchableOpacity
-        style={styles.roomCard}
+        style={[styles.roomCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
         onPress={() => router.push(`/chat/${item.id}`)}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${preview}${dateStr ? `, ${dateStr}` : ''}`}
       >
         {other?.photoURL ? (
-          <Image source={{ uri: other.photoURL }} style={styles.roomAvatarImage} />
+          <Image
+            source={{ uri: other.photoURL }}
+            style={styles.roomAvatarImage}
+            accessibilityIgnoresInvertColors
+          />
         ) : (
-          <View style={styles.roomAvatar}>
-            <Text style={styles.roomAvatarInitial}>
-              {other ? getUserInitial(other) : "?"}
+          <View style={[styles.roomAvatar, { backgroundColor: theme.accent }]}>
+            <Text style={[styles.roomAvatarInitial, { color: theme.textOnAccent }]}>
+              {other ? getUserInitial(other) : '?'}
             </Text>
           </View>
         )}
         <View style={styles.roomInfo}>
           <ThemedText style={styles.roomTitle}>{title}</ThemedText>
-          <ThemedText style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage || "No messages yet"}
+          <ThemedText style={[styles.lastMessage, { color: theme.textMuted }]} numberOfLines={1}>
+            {preview}
           </ThemedText>
         </View>
         <View style={styles.roomMeta}>
-          <Text style={styles.dateText}>{dateStr}</Text>
+          <Text style={[styles.dateText, { color: theme.textMuted }]}>{dateStr}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -118,17 +127,29 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.header} edges={["top"]}>
-        <ThemedText type="title">Messages</ThemedText>
+      <SafeAreaView
+        style={[styles.header, { borderBottomColor: theme.border }]}
+        edges={['top']}
+      >
+        <ThemedText type="title" accessibilityRole="header">
+          Messages
+        </ThemedText>
       </SafeAreaView>
 
       {loading ? (
-        <ThemedText style={styles.emptyText}>Loading...</ThemedText>
+        <ThemedText style={[styles.emptyText, { color: theme.textMuted }]}>
+          Loading conversations
+        </ThemedText>
       ) : error ? (
-        <ThemedText style={styles.errorText}>{error}</ThemedText>
+        <ThemedText
+          style={[styles.errorText, { color: theme.destructive }]}
+          accessibilityRole="alert"
+        >
+          {error}
+        </ThemedText>
       ) : rooms.length === 0 ? (
-        <ThemedText style={styles.emptyText}>
-          No messages yet. Go to Contacts to start a chat!
+        <ThemedText style={[styles.emptyText, { color: theme.textMuted }]}>
+          No messages yet. Open Contacts to start a chat.
         </ThemedText>
       ) : (
         <FlatList
@@ -136,6 +157,7 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderRoom}
           contentContainerStyle={styles.listContent}
+          accessibilityRole="list"
         />
       )}
     </ThemedView>
@@ -149,31 +171,25 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
   },
   listContent: {
     padding: 10,
   },
   roomCard: {
-    flexDirection: "row",
+    flexDirection: 'row',
     padding: 15,
     marginBottom: 10,
-    backgroundColor: "#f9f9f9",
     borderRadius: 8,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    alignItems: 'center',
+    borderWidth: 1,
+    minHeight: minTouchSize,
   },
   roomAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: Brand.ink,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 15,
   },
   roomAvatarImage: {
@@ -183,41 +199,36 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   roomAvatarInitial: {
-    color: "#fff",
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   roomInfo: {
     flex: 1,
   },
   roomTitle: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 4,
-    color: "#333",
   },
   lastMessage: {
     fontSize: 14,
-    color: "#666",
   },
   roomMeta: {
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
   },
   dateText: {
     fontSize: 12,
-    color: "#999",
   },
   emptyText: {
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 50,
     fontSize: 16,
-    color: "#888",
+    paddingHorizontal: 24,
   },
   errorText: {
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 50,
     fontSize: 14,
-    color: "#dc2626",
     paddingHorizontal: 24,
   },
 });
