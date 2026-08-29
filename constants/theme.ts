@@ -1,31 +1,28 @@
 /**
  * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
 import { Platform } from 'react-native';
 
-import { Brand } from '@/constants/brand';
-
-const tintColorLight = Brand.sea;
-const tintColorDark = '#fff';
+import { BrandTokens } from '@/constants/brand';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: BrandTokens.light.text,
+    background: BrandTokens.light.background,
+    tint: BrandTokens.light.accent,
+    icon: BrandTokens.light.icon,
+    tabIconDefault: BrandTokens.light.icon,
+    tabIconSelected: BrandTokens.light.accent,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: BrandTokens.dark.text,
+    background: BrandTokens.dark.background,
+    tint: BrandTokens.dark.accent,
+    icon: BrandTokens.dark.icon,
+    tabIconDefault: BrandTokens.dark.icon,
+    tabIconSelected: BrandTokens.dark.accent,
   },
 };
 
